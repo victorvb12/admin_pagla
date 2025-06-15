@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin Panel - Pagla Clickers</title>
+<style>
+  /* Simple light theme styling */
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 0;
+    background: #f5f7fa;
+  }
+  header {
+    background: #007bff;
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+  nav a {
+    color: white;
+    text-decoration: none;
+    margin-left: 1rem;
+    font-weight: bold;
+  }
+  nav a:hover {
+    text-decoration: underline;
+  }
+  main {
+    max-width: 900px;
+    margin: 2rem auto;
+    background: white;
+    padding: 2rem;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+  }
+  #login-form {
+    max-width: 400px;
+    margin: 3rem auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+  }
+  label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-weight: bold;
+  }
+  input[type="email"],
+  input[type="password"] {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  button {
+    background: #007bff;
+    color: white;
+    padding: 0.7rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #0056b3;
+  }
+  .hidden {
+    display: none;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
+    gap: 1.5rem;
+  }
+  .stat-card {
+    background: #e9f0ff;
+    padding: 1.5rem;
+    border-radius: 6px;
+    text-align: center;
+  }
+  .stat-card h2 {
+    margin: 0;
+    font-size: 3rem;
+    color: #007bff;
+  }
+  .stat-card p {
+    margin: 0.5rem 0 0;
+    font-weight: bold;
+  }
+  #error-message {
+    color: red;
+    margin-bottom: 1rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pagla Clickers Admin Panel</h1>
+  <nav id="admin-nav" class="hidden">
+    <a href="index.html">Dashboard</a>
+    <a href="adminnoti.html">Notifications</a>
+    <a href="adminuser.html">Users</a>
+    <a href="adminjob.html">Jobs</a>
+    <a href="admindp.html">Deposits</a>
+    <a href="adminwd.html">Withdrawals</a>
+    <a href="adminref.html">Referral Rewards</a>
+    <a href="#" id="logout-btn" style="margin-left:2rem; color:#ffdddd;">Logout</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- Login Form -->
+  <section id="login-form">
+    <h2>Admin Login</h2>
+    <div id="error-message"></div>
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="admin@example.com" required />
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="Enter password" required />
+    <button id="login-btn">Login</button>
+  </section>
+
+  <!-- Dashboard -->
+  <section id="dashboard" class="hidden">
+    <h2>Dashboard Overview</h2>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h2 id="pending-jobs-count">0</h2>
+        <p>Pending Jobs</p>
+      </div>
+      <div class="stat-card">
+        <h2 id="pending-deposits-count">0</h2>
+        <p>Pending Deposits</p>
+      </div>
+      <div class="stat-card">
+        <h2 id="pending-withdrawals-count">0</h2>
+        <p>Pending Withdrawals</p>
+      </div>
+      <div class="stat-card">
+        <h2 id="pending-referrals-count">0</h2>
+        <p>Pending Referral Rewards</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+  // Your Firebase config here — replace with your own project's config
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY_HERE",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  // Simple admin whitelist emails - add your admin emails here
+  const adminEmails = [
+    "admin1@example.com",
+    "admin2@example.com"
+  ];
+
+  // Elements
+  const loginForm = document.getElementById('login-form');
+  const dashboard = document.getElementById('dashboard');
+  const adminNav = document.getElementById('admin-nav');
+  const loginBtn = document.getElementById('login-btn');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const errorMessage = document.getElementById('error-message');
+  const logoutBtn = document.getElementById('logout-btn');
+
+  // Stats elements
+  const pendingJobsCount = document.getElementById('pending-jobs-count');
+  const pendingDepositsCount = document.getElementById('pending-deposits-count');
+  const pendingWithdrawalsCount = document.getElementById('pending-withdrawals-count');
+  const pendingReferralsCount = document.getElementById('pending-referrals-count');
+
+  // Show error message helper
+  function showError(msg) {
+    errorMessage.textContent = msg;
+  }
+
+  // Clear error
+  function clearError() {
+    errorMessage.textContent = '';
+  }
+
+  // Login handler
+  loginBtn.addEventListener('click', () => {
+    clearError();
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !password) {
+      showError("Please enter email and password.");
+      return;
+    }
+
+    auth.signInWithEmailAndPassword(email, password)
+      .then(({ user }) => {
+        if (!adminEmails.includes(user.email)) {
+          showError("You do not have admi

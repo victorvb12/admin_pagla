@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin Referral Rewards - Pagla Clickers</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 0;
+    background: #f5f7fa;
+  }
+  header {
+    background: #007bff;
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+  nav a {
+    color: white;
+    text-decoration: none;
+    margin-left: 1rem;
+    font-weight: bold;
+  }
+  nav a:hover {
+    text-decoration: underline;
+  }
+  main {
+    max-width: 1100px;
+    margin: 2rem auto;
+    background: white;
+    padding: 2rem;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 0.6rem 1rem;
+    text-align: left;
+    vertical-align: middle;
+  }
+  th {
+    background: #e9f0ff;
+  }
+  tr:hover {
+    background: #f1f8ff;
+  }
+  button.action-btn {
+    margin-right: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button.addpoints-btn {
+    background-color: #17a2b8;
+    color: white;
+  }
+  button.addpoints-btn:hover {
+    background-color: #138496;
+  }
+  button.delete-btn {
+    background-color: #dc3545;
+    color: white;
+  }
+  button.delete-btn:hover {
+    background-color: #b02a37;
+  }
+  #loading {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 1rem;
+  }
+  /* Modal styling */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0; top: 0; width: 100%; height: 100%;
+    overflow: auto;
+    background: rgba(0,0,0,0.5);
+  }
+  .modal-content {
+    background: white;
+    margin: 10% auto;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    max-width: 400px;
+    position: relative;
+  }
+  .modal-content h3 {
+    margin-top: 0;
+  }
+  .modal-content label {
+    display: block;
+    margin: 0.5rem 0 0.2rem;
+  }
+  .modal-content input[type="number"] {
+    width: 100%;
+    padding: 0.4rem;
+    font-size: 1rem;
+  }
+  .modal-buttons {
+    margin-top: 1rem;
+    text-align: right;
+  }
+  .modal-buttons button {
+    margin-left: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .modal-buttons .btn-cancel {
+    background-color: #6c757d;
+    color: white;
+  }
+  .modal-buttons .btn-cancel:hover {
+    background-color: #5a6268;
+  }
+  .modal-buttons .btn-save {
+    background-color: #28a745;
+    color: white;
+  }
+  .modal-buttons .btn-save:hover {
+    background-color: #218838;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pagla Clickers Admin Panel</h1>
+  <nav id="admin-nav">
+    <a href="index.html">Dashboard</a>
+    <a href="adminnoti.html">Notifications</a>
+    <a href="adminuser.html">Users</a>
+    <a href="adminjob.html">Jobs</a>
+    <a href="admindp.html">Deposits</a>
+    <a href="adminwd.html">Withdrawals</a>
+    <a href="adminref.html">Referral Rewards</a>
+    <a href="#" id="logout-btn" style="margin-left:2rem; color:#ffdddd;">Logout</a>
+  </nav>
+</header>
+
+<main>
+  <h2>Manage Referral Rewards</h2>
+  <div id="loading">Loading referral rewards...</div>
+  <table id="referrals-table" class="hidden">
+    <thead>
+      <tr>
+        <th>Referrer Email</th>
+        <th>Referred User Email</th>
+        <th>Points Earned</th>
+        <th>Date</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="referrals-tbody"></tbody>
+  </table>
+</main>
+
+<!-- Add Points Modal -->
+<div id="addPointsModal" class="modal">
+  <div class="modal-content">
+    <h3>Add Bonus Points</h3>
+    <p id="modalUserInfo"></p>
+    <label for="bonusPointsInput">Points to add:</label>
+    <input type="number" id="bonusPointsInput" min="1" step="1" />
+    <div class="modal-buttons">
+      <button class="btn-cancel" id="modalCancelBtn">Cancel</button>
+      <button class="btn-save" id="modalSaveBtn">Add</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY_HERE",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  const adminEmails = [
+    "admin1@example.com",
+    "admin2@example.com"
+  ];
+
+  const logoutBtn = document.getElementById('logout-btn');
+  const loadingDiv = document.getElementById('loading');
+  const referralsTable = document.getElementById('referrals-table');
+  const referralsTbody = document.getElementById('referrals-tbody');
+
+  // Modal elements
+  const addPointsModal = document.getElementById('addPointsModal');
+  const bonusPointsInput = document.getElementById('bonusPointsInput');
+  const modalUserInfo = document.getElementById('modalUserInfo');
+  const modalCancelBtn = document.getElementById('modalCancelBtn');
+  const modalSaveBtn = document.getElementById('modalSaveBtn');
+
+  let currentDocIdForAddPoints = null;
+  let currentReferrerEmail = '';
+
+  auth.onAuthStateChanged(user => {
+    if (!user || !adminEmails.includes(user.email)) {
+      window.location.href = 'index.html';
+    } else {
+      listenReferralRewards();
+    }
+  });
+
+  logoutBtn.addEventListener('click', e => {
+    e.preventDefault();
+    auth.signOut();
+  });
+
+  function listenReferralRewards() {
+    // Adjust collection name based on your Firestore setup
+    db.collection('referrals').orderBy('date', 'desc').onSnapshot(snapshot => {
+      referralsTbody.innerHTML = '';
+      if (snapshot.empty) {
+        loadingDiv.textContent = 'No referral rewards found.';
+        referralsTable.classList.add('hidden');
+        return;
+      }
+      loadingDiv.style.display = 'none';
+      referralsTable.classList.remove('hidden');
+
+      snapshot.forEach(doc => {
+        const ref = doc.data();
+        const tr = document.createElement('tr');
+
+        // Referrer Email
+        const referrerTd = document.createElement('td');
+        referrerTd.textContent = ref.referrerEmail || 'N/A';
+        tr.appendChild(referrerTd);
+
+        // Referred User Email
+        const referredTd = document.createElement('td');
+        referredTd.textContent = ref.referredEmail || 'N/A';
+        tr.appendChild(referredTd);
+
+        // Points Earned
+        const pointsTd = document.createElement('td');
+        pointsTd.textContent = ref.points !== undefined ? ref.points : '0';
+        tr.appendChild(pointsTd);
+
+        // Date
+        const dateTd = document.createElement('td');
+        if (ref.date && ref.date.toDate) {
+          dateTd.textContent = ref.date.toDate().toLocaleString();
+        } else {
+          dateTd.textContent = 'N/A';
+        }
+        tr.appendChild(dateTd);
+
+        // Actions
+        const actionsTd = document.createElement('td');
+
+        const addPointsBtn = document.createElement('button');
+        addPointsBtn.textContent = 'Add Points';
+        addPointsBtn.className = 'action-btn addpoints-btn';
+        addPointsBtn.addEventListener('click', () => openAddPointsModal(doc.id, ref.referrerEmail));
+        actionsTd.appendChild(addPointsBtn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.className = 'action-btn delete-btn';
+        deleteBtn.addEventListener('click', () => deleteReferral(doc.id));
+        actionsTd.appendChild(deleteBtn);
+
+        tr.appendChild(actionsTd);
+
+        referralsTbody.appendChild(tr);
+      });
+    }, err => {
+      loadingDiv.textContent = 'Error loading referral rewards: ' + err.message;
+      referralsTable.classList.add('hidden');
+    });
+  }
+
+  function openAddPointsModal(docId, referrerEmail) {
+    currentDocIdForAddPoints = docId;
+    currentReferrerEmail = referrerEmail;
+    bonusPointsInput.value = '';
+    modalUserInfo.textContent = `Referrer: ${referrerEmail}`;
+    addPointsModal.style.display = 'block';
+    bonusPointsInput.focus();
+  }
+
+  modalCancelBtn.addEventListener('click', () => {
+    addPointsModal.style.display = 'none';
+  });
+
+  modalSaveBtn.addEventListener('click', () => {
+    const pointsToAdd = parseInt(bonusPointsInput.value);
+    if (isNaN(pointsToAdd) || pointsToAdd <= 0) {
+      alert('Please enter a valid positive number for points.');
+      return;
+    }
+    addBonusPoints(currentDocIdForAddPoints, pointsToAdd);
+  });
+
+  window.onclick = function(event) {
+    if (event.target == addPointsModal) {
+      addPointsModal.style.display = 'none';
+    }
+  }
+
+  function addBonusPoints(docId, pointsToAdd) {
+    const refDoc = db.collection('referrals').doc(docId);
+    db.runTransaction(transaction => {
+      return transaction.get(refDoc).then(doc => {
+        if (!doc.exists) {
+          throw "Referral record does not exist!";
+        }
+        const currentPoints = doc.data().points || 0;
+        const newPoints = currentPoints + pointsToAdd;
+        transaction.update(refDoc, { points: newPoints });
+      });
+    }).then(() => {
+      alert(`Successfully added ${pointsToAdd} points.`);
+      addPointsModal.style.display = 'none';
+    }).catch(err => {
+      alert('Error adding points: ' + err);
+    });
+  }
+
+  function deleteReferral(docId) {
+    if (!confirm('Are you sure you want to delete this referral record?')) return;
+    db.collection('referrals').doc(docId).delete()
+      .then(() => {
+        alert('Referral record deleted.');
+      })
+      .catch(err => {
+        alert('Error deleting referral: ' + err.message);
+      });
+  }
+</script>
+
+</body>
+</html>

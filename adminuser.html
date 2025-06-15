@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin Users - Pagla Clickers</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 0;
+    background: #f5f7fa;
+  }
+  header {
+    background: #007bff;
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+  nav a {
+    color: white;
+    text-decoration: none;
+    margin-left: 1rem;
+    font-weight: bold;
+  }
+  nav a:hover {
+    text-decoration: underline;
+  }
+  main {
+    max-width: 1000px;
+    margin: 2rem auto;
+    background: white;
+    padding: 2rem;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 0.8rem 1rem;
+    text-align: left;
+  }
+  th {
+    background: #e9f0ff;
+  }
+  tr:hover {
+    background: #f1f8ff;
+  }
+  button.delete-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  button.delete-btn:hover {
+    background: #b02a37;
+  }
+  #loading {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 1rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pagla Clickers Admin Panel</h1>
+  <nav id="admin-nav">
+    <a href="index.html">Dashboard</a>
+    <a href="adminnoti.html">Notifications</a>
+    <a href="adminuser.html">Users</a>
+    <a href="adminjob.html">Jobs</a>
+    <a href="admindp.html">Deposits</a>
+    <a href="adminwd.html">Withdrawals</a>
+    <a href="adminref.html">Referral Rewards</a>
+    <a href="#" id="logout-btn" style="margin-left:2rem; color:#ffdddd;">Logout</a>
+  </nav>
+</header>
+
+<main>
+  <h2>Manage Users</h2>
+  <div id="loading">Loading users...</div>
+  <table id="users-table" class="hidden">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Name</th>
+        <th>Points</th>
+        <th>Referral Code</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="users-tbody">
+      <!-- Users will be loaded here -->
+    </tbody>
+  </table>
+</main>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+  // Firebase config — replace with your config
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY_HERE",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  // Admin whitelist
+  const adminEmails = [
+    "admin1@example.com",
+    "admin2@example.com"
+  ];
+
+  const logoutBtn = document.getElementById('logout-btn');
+  const loadingDiv = document.getElementById('loading');
+  const usersTable = document.getElementById('users-table');
+  const usersTbody = document.getElementById('users-tbody');
+
+  // Redirect if not admin
+  auth.onAuthStateChanged(user => {
+    if (!user || !adminEmails.includes(user.email)) {
+      window.location.href = 'index.html';
+    } else {
+      setupUsersListener();
+    }
+  });
+
+  logoutBtn.addEventListener('click', e => {
+    e.preventDefault();
+    auth.signOut();
+  });
+
+  function setupUsersListener() {
+    db.collection('users').orderBy('email').onSnapshot(snapshot => {
+      usersTbody.innerHTML = '';
+      if (snapshot.empty) {
+        loadingDiv.textContent = "No users found.";
+        usersTable.classList.add('hidden');
+        return;
+      }
+      loadingDiv.style.display = 'none';
+      usersTable.classList.remove('hidden');
+      snapshot.forEach(doc => {
+        const user = doc.data();
+        const tr = document.createElement('tr');
+
+        const emailTd = document.createElement('td');
+        emailTd.textContent = user.email || 'N/A';
+        tr.appendChild(emailTd);
+
+        const nameTd = document.createElement('td');
+        nameTd.textContent = user.name || 'N/A';
+        tr.appendChild(nameTd);
+
+        const pointsTd = document.createElement('td');
+        pointsTd.textContent = user.points !== undefined ? user.points : '0';
+        tr.appendChild(pointsTd);
+
+        const referralTd = document.createElement('td');
+        referralTd.textContent = user.referralCode || 'N/A';
+        tr.appendChild(referralTd);
+
+        const actionsTd = document.createElement('td');
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', () => confirmDeleteUser(doc.id, user.email));
+        actionsTd.appendChild(deleteBtn);
+        tr.appendChild(actionsTd);
+
+        usersTbody.appendChild(tr);
+      });
+    }, err => {
+      loadingDiv.textContent = "Error loading users: " + err.message;
+      usersTable.classList.add('hidden');
+    });
+  }
+
+  function confirmDeleteUser(userId, userEmail) {
+    if (confirm(`Are you sure you want to delete user: ${userEmail}? This action cannot be undone.`)) {
+      db.collection('users').doc(userId).delete()
+        .then(() => {
+          alert('User deleted successfully.');
+        })
+        .catch(error => {
+          alert('Error deleting user: ' + error.message);
+        });
+    }
+  }
+</script>
+
+</body>
+</html>
